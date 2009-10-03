@@ -1,9 +1,9 @@
-config-deploy Readme
-====================
+cdeploy Readme
+==============
 
 I. Synopsis
 
-config-deploy is a simple utility which helps deploying 
+cdeploy is a simple utility which helps deploying 
 configuration files onto a system (ok, they do not 
 necessarily need to be configuration files, as it just works
 with all kinds of regular files, but I wrote it for that
@@ -20,34 +20,37 @@ II. Features
 
 III. Installation
 
-config-deploy ships with a make file, so just type 
+cdeploy ships with a make file, so just type 
 
 make install
 
-to install config-deploy into /usr/local/sbin (if you
+to install cdeploy into /usr/local/sbin (if you
 would like to use another installation target, please
 edit the shipped Makefile to meet your needs.
 
 
 IV. Platforms
 
-config-deploy should work on all POSIX-compliant platforms
-providing a POSIX-compliant shell (/bin/sh) and a passwd
-file located in /etc.
+cdeploy should work on all POSIX-compliant platforms
+providing a POSIX-compliant shell (/bin/sh) and a passwd and
+group file located in /etc.
 
-However, the author has tested config-deploy only on 
+However, the author has tested cdeploy only on 
 FreeBSD systems (7.2-RELEASE, 7.2-STABLE and 8.0-RC1).
 
 
 V. Usage
 
-Since there are no command line options, simply run
-config-deploy from a configuration tree directory.
+Simply run cdeploy from a configuration tree directory.
+For possible options please type 
 
-config-deploy will look for configuration files within
+cdeploy -h
+
+cdeploy will look for configuration files within
 the current directory and below. All files that reside
 inside or below the directory you run it from will
-be deployed into the file system root.
+be deployed into the chosen destination (by default, this
+is the file system root '/').
 
 So if there is a ./etc directory in your CWD, all files
 residing inside this directory will be deployed to /etc.
@@ -67,10 +70,10 @@ Put a file into ~/foo/home/<myuser>, e. g. using echo:
 
 echo "Hello Foo" > ~/foo/home/<myuser>/testfile
 
-now change into the foo directory and run config-deploy:
+now change into the foo directory and run cdeploy:
 
 cd ~/foo
-config-deploy
+cdeploy
 
 You will now have testfile deployed into you home directory:
 
@@ -80,11 +83,11 @@ ls ~
 Now change the testfile inside your foo directory and deploy
 it again. You will now find the changed testfile inside your
 home directory and a backup copy of the old testfile inside
-~/config/<date_time>/
+~/.cdeploy/<date_time>/
 
-The icing on the cake: the backup directory ~/config/<date_time>/
+The icing on the cake: the backup directory ~/.cdeploy/<date_time>/
 is a whole and saint config tree directory. You can just go there
-and run config-deploy again and, wonder of wonders, your old 
+and run cdeploy again and, wonder of wonders, your old 
 configs are restored once again (and of course you got a 
 backup of the previously installed ones which could again be
 re-deployed, but you surely figured this one out by yourself ;-))
