@@ -65,13 +65,16 @@ normal="\033[0m"
 
 db_list=""
 
+EXCLUDE="\.svn|\.hg|\.cvs|\.git"
 USER=$($b_id -un)
 GROUP=$($b_id -gn)
+IMODE="0644"
 WRKDIR=$($b_grep $USER /etc/passwd | $b_head -1 | $b_awk -F: '{print $6}')
 WRKDIR=$(echo $WRKDIR | $b_sed 's/\/$//g')
 WRKDIR="${WRKDIR}/.cdeploy"
 DESTDIR="/"
 SIMMODE=0
+IGNEXCL=0
 
 MODE=1				# Default: interactive mode
 LOGTO=stdout		# Default: write log messages to stdout
@@ -106,12 +109,14 @@ show_usage() {
   -n              non-interactive mode: no escape sequences in output
   -D              do not invoke cap_mkdb for db template files
   -S              simulation mode. creates backups, but doesn't deploy files
+  -X              ignore exclusion pattern
   -b backup-dir   create backups in <backup-dir>
   -d destdir      deploy configuration to <destdir>
   -l loglevel     set verbositiy to either DEBUG, INFO, WARN, or ERROR
   -u user         deploy as owner <user> if detection fails
   -g group        deploy as group <group> if detection fails
   -m mode         deploy with mode <mode> if detection fails
+  -x pattern      exclude files matching <pattern> from deployment
 
 Please report any issues like bugs etc. via the root-tools bug tracking
 tool available at http://sourceforge.net/projects/root-tools/" >&2 && exit 0
@@ -222,71 +227,122 @@ do
 			SIMMODE=1
 			shift
 			;;
+		-X)
+			IGNEXCL=1
+			shift
+			;;
 		-b)
-			if [ -d "$2" ]
+			if [ "$#" -gt "1" ]
 			then
-				if [ -w "$2" ]
+				if [ -d "$2" ]
 				then
-					WRKDIR=$(echo $2 | $b_sed 's/\/$//g')
-					log DEBUG "Working directory for backups set to $WRKDIR"
+					if [ -w "$2" ]
+					then
+						WRKDIR=$(echo $2 | $b_sed 's/\/$//g')
+						log DEBUG "Working directory for backups set to $WRKDIR"
+					else
+						log ERROR "cannot write to $2 (no permission)"
+						exit 1
+					fi
 				else
-					log ERROR "cannot write to $2 (no permission)"
-					exit 1
+					WRKDIR=$(echo $2 | $b_sed 's\/$//g')
 				fi
 			else
-				WRKDIR=$(echo $2 | $b_sed 's\/$//g')
+				log ERROR "No argument supplied for -b."
+				exit 1
 			fi
 			shift 2
 			;;
 		-d)
-			if [ -d "$2" ]
+			if [ "$#" -gt "1" ]
 			then
-				DESTDIR=$(echo $2 | $b_sed 's/\/$//g')
-				log DEBUG "Deployment destination set to $DESTDIR"
+				if [ -d "$2" ]
+				then
+					DESTDIR=$(echo $2 | $b_sed 's/\/$//g')
+					log DEBUG "Deployment destination set to $DESTDIR"
+				else
+					log ERROR "$2 is not a valid directory"
+					exit 1
+				fi
 			else
-				log ERROR "$2 is not a valid directory"
+				log ERROR "No argument supplied for -d."
 				exit 1
 			fi
 			shift 2
 			;;
 		-l)
-			if [ "$(get_log_level $2)" -ge "0" ]
+			if [ "$#" -gt "1" ]
 			then
-				LOGLEVEL=$(get_log_level $2)
+				if [ "$(get_log_level $2)" -ge "0" ]
+				then
+					LOGLEVEL=$(get_log_level $2)
+				else
+					log ERROR "$2 is not a valid log level."
+					exit 1
+				fi
 			else
-				log ERROR "$2 is not a valid log level."
+				log ERROR "No argument supplied for -l."
 				exit 1
 			fi
 			shift 2
 			;;
 		-u)
-			{ ut=$($b_id $2); } 2>/dev/null
-			if [ -z "$ut" ]
+			if [ "$#" -gt "1" ]
 			then
-				log ERROR "$2 is not a valid system user."
-				exit 1
+				{ ut=$($b_id $2); } 2>/dev/null
+				if [ -z "$ut" ]
+				then
+					log ERROR "$2 is not a valid system user."
+					exit 1
+				else
+					USER=$2
+					log DEBUG "User for deployment is set to $USER"
+				fi
 			else
-				USER=$2
-				log DEBUG "User for deployment is set to $USER"
+				log ERROR "No argument supplied for -u."
+				exit 1
 			fi
 			shift 2
 			;;
 		-g)
-			gt="0"
-			gt=$($b_grep "^$2" /etc/group | $b_wc -l)
-			if [ -z "$gt" -o "$2" -lt "1" ]
+			if [ "$#" -gt "1" ]
 			then
-				log ERROR "$2 is not a valid group."
-				exit 1
+				gt="0"
+				gt=$($b_grep "^$2" /etc/group | $b_wc -l)
+				if [ -z "$gt" -o "$2" -lt "1" ]
+				then
+					log ERROR "$2 is not a valid group."
+					exit 1
+				else
+					GROUP=$2
+					log DEBUG "Group for deployment is set to $GROUP"
+				fi
 			else
-				GROUP=$2
-				log DEBUG "Group for deployment is set to $GROUP"
+				log ERROR "No argument supplied for -g."
+				exit 1
 			fi
 			shift 2
 			;;
 		-m)
-			MODE=$2
-			log DEBUG "Mode for deployment is set to $MODE"
+			if [ "$#" -gt "1" ]
+			then
+				IMODE=$2
+				log DEBUG "Mode for deployment is set to $IMODE"
+			else
+				log ERROR "No argument supplied for -m."
+				exit 1
+			fi
+			shift 2
+			;;
+		-x)
+			if [ "$#" -gt "1" ]
+			then
+				EXCLUDE=$2
+				log DEBUG "Exclusion pattern set to $EXCLUDE"
+			else
+				log ERROR "No argument supplied for -x."
+				exit 1
+			fi
 			shift 2
 			;;
 		*)
@@ -324,16 +380,26 @@ else
 	echo -e "${green}success${normal}"
 fi
 
+if [ "$IGNEXCL" -eq "0" ]
+then
+	candidates=$($b_find . -type f | $b_grep -E -v ${EXCLUDE})
+else
+	candidates=$($b_find . -type f)
+fi
 
-for i in $($b_find . -type f)
+for i in $candidates
 do
-	orig=$(echo $i | sed 's/^\.//')
+	orig=$(echo $i | $b_sed 's/^\.//')
+	if [ ! "$DESTDIR" = "/" ]
+	then
+		orig="${DESTDIR}${orig}"
+	fi
 	odir=$($b_dirname $orig)
 	if [ "$SIMMODE" -eq "0" ]
 	then
 		echo -n "deploying $($b_basename $i) to ${orig} ... "
 	else
-		echo -n "simulating deployment of $(b_basename $i) to ${orig} ... "
+		echo -n "simulating deployment of $($b_basename $i) to ${orig} ... "
 	fi
 
 	# is this file a template for a db file?
@@ -356,7 +422,7 @@ do
 	else
 		user=$USER
 		group=$GROUP
-		mode=$MODE
+		mode=$IMODE
 	fi
 
 	# create backup of original file (if it exists)
@@ -390,7 +456,7 @@ do
 		idir=$($b_dirname $orig)
 		if [ ! -d "$idir" ]
 		then
-			if [ if ! -d $($b_dirname $idir) ]
+			if [ ! -d $($b_dirname $idir) ]
 			then
 				# target directory does not exist and can possibly not be created
 				echo -e "${amber}warning${normal}"
@@ -413,7 +479,7 @@ do
 			else
 				# target directory exists, but is not writeable
 				log DEBUG "Cannot write to ${idir}."
-				echo -e "${red}failed${normal}
+				echo -e "${red}failed${normal}"
 			fi
 		fi
 	fi
