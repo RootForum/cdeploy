@@ -502,6 +502,7 @@ then
 				echo -e "${green}success${normal}"
 			fi
 		else
+			echo -n "simulating refresh of db file for $i ... "
 			if [ -z "$b_cap" ]
 			then
 				echo -e "${red}failed${normal}"
