@@ -129,7 +129,7 @@ tool available at http://sourceforge.net/projects/root-tools/" >&2 && exit 0
 show_version() {
 	local revstring='$Id$'
 	revstring=$(echo $revstring | $b_awk '{print $3}')
-	local VERSION=""
+	local VERSION="0.2.0-beta1"
 	if [ -z "$VERSION" ]
 	then
 		local VER="development version r${revstring}"
