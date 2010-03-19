@@ -51,6 +51,7 @@ b_head=$(detect_binary "head")
 b_id=$(detect_binary "id")
 b_install=$(detect_binary "install")
 b_mkdir=$(detect_binary "mkdir")
+b_openssl=$(detect_binary "openssl")
 b_sed=$(detect_binary "sed")
 b_stat=$(detect_binary "stat")
 b_tr=$(detect_binary "tr")
@@ -75,6 +76,7 @@ WRKDIR="${WRKDIR}/.cdeploy"
 DESTDIR="/"
 SIMMODE=0
 IGNEXCL=0
+DIFF=0
 
 MODE=1				# Default: interactive mode
 LOGTO=stdout		# Default: write log messages to stdout
@@ -96,7 +98,7 @@ fi
 # FUNCTIONS
 
 show_usage() {
-	local FLAGS="[-hnvDS] [-b backup-dir] [-d destdir] [-u user] [-g group] [-m mode]"
+	local FLAGS="[-chnvDSX] [-b backup-dir] [-d destdir] [-u user] [-g group] [-m mode]"
 	if [ "${MODE}" -eq "1" ]; then
 		local USG="${red}usage: ${green}$($b_basename ${0}) ${normal}${FLAGS}"
 	else
@@ -106,12 +108,13 @@ show_usage() {
 
   -h              print this help
   -v              print version information
+  -c              only deploy new files and files different from original
   -n              non-interactive mode: no escape sequences in output
   -D              do not invoke cap_mkdb for db template files
   -S              simulation mode. creates backups, but doesn't deploy files
   -X              ignore exclusion pattern
   -b backup-dir   create backups in <backup-dir>
-  -d destdir      deploy configuration to <destdir>
+  -d destdir      deploy files to <destdir>
   -l loglevel     set verbositiy to either DEBUG, INFO, WARN, or ERROR
   -u user         deploy as owner <user> if detection fails
   -g group        deploy as group <group> if detection fails
@@ -135,7 +138,7 @@ show_version() {
 	fi
 	echo "$($b_basename ${0}) ${VER}
 
-Copyright (c) 2009 Jesco Freund <aihal@users.sourceforge.net>
+Copyright (c) 2009, 2010 Jesco Freund <aihal@users.sourceforge.net>
 License: ISCL: ISC License <http://www.opensource.org/licenses/isc-license.txt>
 This is free software: you are free to change and redistribute ist.
 There is NO WARRANTY, to the extent permitted by law.
@@ -208,6 +211,10 @@ do
 			;;
 		-v|--version)
 			show_version
+			shift
+			;;
+		-c)
+			DIFF=1
 			shift
 			;;
 		-n)
@@ -402,84 +409,102 @@ do
 		echo -n "simulating deployment of $($b_basename $i) to ${orig} ... "
 	fi
 
-	# is this file a template for a db file?
-	if [ -f "${orig}.db" -a "$MKDB" -gt "0" ]
+	# determine whether to skip this file or not
+	skip=0
+	if [ -f "$orig" -a "$DIFF" -gt "0" ]
 	then
-		if [ -z "${db_list}" ]
+		ohash=$($b_openssl dgst -md5 -hex $orig | $b_sed 's/.*= //')
+		dhash=$($b_openssl dgst -md5 -hex $i | $b_sed 's/.*= //')
+		if [ "${ohash}" = "${dhash}" ]
 		then
-			db_list=$orig
-		else
-			db_list="${db_list} ${orig}"
+			skip=1
+			echo -e "${white}skipped${normal}"
 		fi
 	fi
 
-	# determine mode of original file
-	if [ -f "$orig" ]
+	# do this only if file is not skipped
+	if [ "${skip}" -eq "0" ]
 	then
-		user=$($b_stat -f "%Su" $orig)
-		group=$($b_stat -f "%Sg" $orig)
-		mode=$($b_stat -f "%p" $orig | $b_cut -c 3-6)
-	else
-		user=$USER
-		group=$GROUP
-		mode=$IMODE
-	fi
 
-	# create backup of original file (if it exists)
-	if [ -f "$orig" ]
-	then
-		{ $b_mkdir -p ${location}$($b_dirname ${orig}); } >/dev/null 2>/dev/null
-		{ $b_install -S -o $user -g $group -m $mode $orig ${location}${odir}; } >/dev/null 2>/dev/null
-		if [ "$?" -ne "0" ]
-		then 
-			echo -e "${red}failed${normal}"
-			continue
-		fi
-	fi
-
-	# deploy new file
-	if [ "$SIMMODE" -eq "0" ]
-	then
-		if [ ! -d $($b_dirname $orig) ]
+		# is this file a template for a db file?
+		if [ -f "${orig}.db" -a "$MKDB" -gt "0" ]
 		then
-			{ $b_mkdir -p $($b_dirname $orig); } >/dev/null 2>/dev/null
-		fi
-		{ $b_install -S -o $user -g $group -m $mode $i $orig; } >/dev/null 2>/dev/null
-		if [ "$?" -ne "0" ]
-		then
-			echo -e "${red}failed${normal}"
-		else
-			echo -e "${green}success${normal}"
-		fi
-	else
-		# test for caveats
-		idir=$($b_dirname $orig)
-		if [ ! -d "$idir" ]
-		then
-			if [ ! -d $($b_dirname $idir) ]
+			if [ -z "${db_list}" ]
 			then
-				# target directory does not exist and can possibly not be created
-				echo -e "${amber}warning${normal}"
+				db_list=$orig
 			else
-				if [ -w $($b_dirname $idir) ]
-				then
-					# Parent directory exists and is writeable
-					echo -e "${green}success${normal}"
-				else
-					# Parent directory exists, but is not writeable
-					log DEBUG "Cannot write to $($b_dirname $idir)."
-					echo -e "${red}failed${normal}"
-				fi
+				db_list="${db_list} ${orig}"
+			fi
+		fi
+
+		# determine mode of original file
+		if [ -f "$orig" ]
+		then
+			user=$($b_stat -f "%Su" $orig)
+			group=$($b_stat -f "%Sg" $orig)
+			mode=$($b_stat -f "%p" $orig | $b_cut -c 3-6)
+		else
+			user=$USER
+			group=$GROUP
+			mode=$IMODE
+		fi
+
+		# create backup of original file (if it exists)
+		if [ -f "$orig" ]
+		then
+			{ $b_mkdir -p ${location}$($b_dirname ${orig}); } >/dev/null 2>/dev/null
+			{ $b_install -o $user -g $group -m $mode $orig ${location}${odir}; } >/dev/null 2>/dev/null
+			if [ "$?" -ne "0" ]
+			then 
+				echo -e "${red}failed${normal}"
+				continue
+			fi
+		fi
+
+		# deploy new file
+		if [ "$SIMMODE" -eq "0" ]
+		then
+			if [ ! -d $($b_dirname $orig) ]
+			then
+				{ $b_mkdir -p $($b_dirname $orig); } >/dev/null 2>/dev/null
+			fi
+			{ $b_install -o $user -g $group -m $mode $i $orig; } >/dev/null 2>/dev/null
+			if [ "$?" -ne "0" ]
+			then
+				echo -e "${red}failed${normal}"
+			else
+				echo -e "${green}success${normal}"
 			fi
 		else
-			if [ -w "$idir" ]
+			# test for caveats
+			idir=$($b_dirname $orig)
+			if [ ! -d "$idir" ]
 			then
-				# target directory exists and is writeable
-				echo -e "${green}success${normal}"
+				if [ ! -d $($b_dirname $idir) ]
+				then
+					# target directory does not exist and can possibly not be created
+					echo -e "${amber}warning${normal}"
+				else
+					if [ -w $($b_dirname $idir) ]
+					then
+						# Parent directory exists and is writeable
+						echo -e "${green}success${normal}"
+					else
+						# Parent directory exists, but is not writeable
+						log DEBUG "Cannot write to $($b_dirname $idir)."
+						echo -e "${red}failed${normal}"
+					fi
+				fi
 			else
-				# target directory exists, but is not writeable
-				log DEBUG "Cannot write to ${idir}."
-				echo -e "${red}failed${normal}"
+				if [ -w "$idir" ]
+				then
+					# target directory exists and is writeable
+					echo -e "${green}success${normal}"
+				else
+					# target directory exists, but is not writeable
+					log DEBUG "Cannot write to ${idir}."
+					echo -e "${red}failed${normal}"
+				fi
 			fi
 		fi
 	fi
