@@ -377,14 +377,25 @@ fi
 
 # create backup location
 location=$($b_date "+${WRKDIR}/%Y%m%d-%H%M%S")
-echo -n "creating backup directory in ${location} ... "
-{ $b_mkdir $location; } >/dev/null 2>/dev/null
-if [ "$?" -ne "0" ]
+if [ "$SIMMODE" -eq "0" ]
 then
-	echo -e "${red}failed${normal}"
-	exit 1
+	echo -n "creating backup directory in ${location} ... "
+	{ $b_mkdir $location; } >/dev/null 2>/dev/null
+	if [ "$?" -ne "0" ]
+	then
+		echo -e "${red}failed${normal}"
+		exit 1
+	else
+		echo -e "${green}success${normal}"
+	fi
 else
-	echo -e "${green}success${normal}"
+	echo -n "simulating creation of backup directory in ${location} ... "
+	if [ -d "$WRKDIR" -a -w "$WRKDIR" ]
+	then
+		echo -e "${green}success${normal}"
+	else
+		echo -e "${red}failed${normal}"
+	fi
 fi
 
 if [ "$IGNEXCL" -eq "0" ]
@@ -449,8 +460,8 @@ do
 			mode=$IMODE
 		fi
 
-		# create backup of original file (if it exists)
-		if [ -f "$orig" ]
+		# create backup of original file (if it exists and not in simulation mode)
+		if [ -f "$orig" -a "$SIMMODE" -eq "0" ]
 		then
 			{ $b_mkdir -p ${location}$($b_dirname ${orig}); } >/dev/null 2>/dev/null
 			{ $b_install -o $user -g $group -m $mode $orig ${location}${odir}; } >/dev/null 2>/dev/null
