@@ -111,7 +111,7 @@ show_usage() {
   -c              only deploy new files and files different from original
   -n              non-interactive mode: no escape sequences in output
   -D              do not invoke cap_mkdb for db template files
-  -S              simulation mode. creates backups, but doesn't deploy files
+  -S              simulation mode: prevents modification of the file system
   -X              ignore exclusion pattern
   -b backup-dir   create backups in <backup-dir>
   -d destdir      deploy files to <destdir>
@@ -129,7 +129,7 @@ tool available at http://sourceforge.net/projects/root-tools/" >&2 && exit 0
 show_version() {
 	local revstring='$Id$'
 	revstring=$(echo $revstring | $b_awk '{print $3}')
-	local VERSION=""
+	local VERSION="0.2.0-beta2"
 	if [ -z "$VERSION" ]
 	then
 		local VER="development version r${revstring}"
