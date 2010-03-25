@@ -487,33 +487,24 @@ do
 				echo -e "${green}success${normal}"
 			fi
 		else
-			# test for caveats
+			# test for write permission in target directory (or one of its parents)
 			idir=$($b_dirname $orig)
-			if [ ! -d "$idir" ]
+			while [ ! -d $idir ]
+			do
+				idir=$($b_dirname $idir)
+			done
+
+			if [ -z "$idir" ]
 			then
-				if [ ! -d $($b_dirname $idir) ]
-				then
-					# target directory does not exist and can possibly not be created
-					echo -e "${amber}warning${normal}"
-				else
-					if [ -w $($b_dirname $idir) ]
-					then
-						# Parent directory exists and is writeable
-						echo -e "${green}success${normal}"
-					else
-						# Parent directory exists, but is not writeable
-						log DEBUG "Cannot write to $($b_dirname $idir)."
-						echo -e "${red}failed${normal}"
-					fi
-				fi
+				echo -e "${amber}warning${normal}"
 			else
 				if [ -w "$idir" ]
 				then
-					# target directory exists and is writeable
+					# Parent directory exists and is writeable
 					echo -e "${green}success${normal}"
 				else
-					# target directory exists, but is not writeable
-					log DEBUG "Cannot write to ${idir}."
+					# Parent directory exists, but is not writeable
+					log DEBUG "Cannot write to $($b_dirname $idir)."
 					echo -e "${red}failed${normal}"
 				fi
 			fi
