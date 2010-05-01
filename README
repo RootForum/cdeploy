@@ -1,7 +1,7 @@
 cdeploy Readme
 ==============
 
-I. Synopsis
+I. Description
 
 cdeploy is a simple utility which helps deploying 
 configuration files onto a system (ok, they do not 
@@ -22,7 +22,7 @@ III. Installation
 
 cdeploy ships with a make file, so just type 
 
-make install
+  make install
 
 to install cdeploy into /usr/local/sbin (if you
 would like to use another installation target, please
@@ -41,10 +41,14 @@ FreeBSD systems (7.2-RELEASE, 7.2-STABLE and 8.0-RC1).
 
 V. Usage
 
+Please read the shipped manpage carefully!
+
+  man cdeploy
+
 Simply run cdeploy from a configuration tree directory.
 For possible options please type 
 
-cdeploy -h
+  cdeploy -h
 
 cdeploy will look for configuration files within
 the current directory and below. All files that reside
@@ -68,17 +72,17 @@ directory, e. g. ~/foo/home/<myuser>.
 
 Put a file into ~/foo/home/<myuser>, e. g. using echo:
 
-echo "Hello Foo" > ~/foo/home/<myuser>/testfile
+  echo "Hello Foo" > ~/foo/home/<myuser>/testfile
 
 now change into the foo directory and run cdeploy:
 
-cd ~/foo
-cdeploy
+  cd ~/foo
+  cdeploy
 
 You will now have testfile deployed into you home directory:
 
-ls ~
-... testfile ...
+  ls ~
+  ... testfile ...
 
 Now change the testfile inside your foo directory and deploy
 it again. You will now find the changed testfile inside your

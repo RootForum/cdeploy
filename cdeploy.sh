@@ -98,7 +98,8 @@ fi
 # FUNCTIONS
 
 show_usage() {
-	local FLAGS="[-chnvDSX] [-b backup-dir] [-d destdir] [-u user] [-g group] [-m mode]"
+	local FLAGS="[-chnvDSX] [-b backup-dir] [-d destdir] [-u user] [-g group]
+               [-m mode] [-x pattern]"
 	if [ "${MODE}" -eq "1" ]; then
 		local USG="${red}usage: ${green}$($b_basename ${0}) ${normal}${FLAGS}"
 	else
