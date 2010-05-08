@@ -1,7 +1,8 @@
 # $Id$
 
 all:
-	@echo "There is nothing to compile here, just type 'make (de)install'"
+	cp cdeploy.sh cdeploy
+	chmod 0555 cdeploy
 
 install:
 	install -o root -g wheel -m 0555 cdeploy.sh /usr/local/sbin/cdeploy
