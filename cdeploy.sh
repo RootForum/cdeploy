@@ -3,7 +3,7 @@
 # Configuration File Deployment Tool
 # deploys configuration files into the system
 #
-# Copyright (c) 2009 Jesco Freund <aihal@users.sourceforge.net>
+# Copyright (c) 2009, 2010, 2013 Jesco "Daemotron" Freund <mail@daemotron.net>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -66,6 +66,8 @@ normal="\033[0m"
 
 db_list=""
 
+VERSION="0.3.dev"
+
 EXCLUDE="\.svn|\.hg|\.cvs|\.git"
 USER=$($b_id -un)
 GROUP=$($b_id -gn)
@@ -122,26 +124,17 @@ show_usage() {
   -m mode         deploy with mode <mode> if detection fails
   -x pattern      exclude files matching <pattern> from deployment
 
-Please report any issues like bugs etc. via the root-tools bug tracking
-tool available at http://sourceforge.net/projects/root-tools/" >&2 && exit 0
+Please report any issues like bugs etc. via the cdeploy bug tracking
+tool available at https://github.com/RootForum/cdeploy/issues" >&2 && exit 0
 }
 
 
 show_version() {
-	local revstring='$Id$'
-	revstring=$(echo $revstring | $b_awk '{print $3}')
-	local VERSION=""
-	if [ -z "$VERSION" ]
-	then
-		local VER="development version r${revstring}"
-	else
-		local VER="$VERSION"
-	fi
-	echo "$($b_basename ${0}) ${VER}
+	echo "$($b_basename ${0}) ${VERSION}
 
-Copyright (c) 2009, 2010 Jesco Freund <aihal@users.sourceforge.net>
+Copyright (c) 2009, 2010, 2013 Jesco \"Daemotron\" Freund <mail@daemotron.net>
 License: ISCL: ISC License <http://www.opensource.org/licenses/isc-license.txt>
-This is free software: you are free to change and redistribute ist.
+This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 Written by Jesco Freund." >&2 && exit 0
